@@ -20,8 +20,13 @@ function love.load()
 
     -- Sistema de enemigos
     enemies = {}
+    bullets = {}
     spawnTimer = 0
     spawnRate = 1.5 -- Crea un enemigo cada 1.5 segundos
+
+    -- Sistema de Puntuación
+    score = 0
+    scoreScale = 1
 
     -- Variables de distorsión
     distortion = {
@@ -42,6 +47,35 @@ function love.update(dt)
 
     -- Actualizar timer para efectos visuales
     timer = timer + dt
+
+    scoreScale = math.max(1, scoreScale - dt * 5)
+
+    -- Lógica de Balas y Colisiones
+    for i = #bullets, 1, -1 do
+        local b = bullets[i]
+        b.distance = b.distance - b.speed * dt
+
+        if b.distance < 0 then
+            table.remove(bullets, i)
+        else
+            for j = #enemies, 1, -1 do
+                local e = enemies[j]
+                local distDiff = math.abs(b.distance - e.distance)
+                local angleDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
+
+                if distDiff < 20 and (angleDiff < 0.2 or angleDiff > (math.pi*2 - 0.2)) then
+
+                    score = score + 100
+                    scoreScale = 2 -- Hace que el texto crezca de golpe
+
+                    table.remove(enemies, j)
+                    table.remove(bullets, i)
+                    distortion.shake = 0.5
+                    break
+                end
+            end
+        end
+    end
 
     -- Generar enemigos
     spawnTimer = spawnTimer + dt
@@ -147,7 +181,24 @@ function love.draw()
         love.graphics.print("OBEY", 10, 10, 0, 2, 2)
     end
 
+    -- NUEVO: Dibujar Balas
+    love.graphics.setColor(1, 1, 0)
+    for _, b in ipairs(bullets) do
+        local bx = centerX + math.cos(b.angle) * b.distance
+        local by = centerY + math.sin(b.angle) * b.distance
+        love.graphics.circle("fill", bx, by, 3)
+    end
+
     love.graphics.pop()
+
+    love.graphics.setColor(1, 1, 1)
+
+    -- Dibuja el Score con un pequeño efecto de escala
+    local scoreText = "SUJETO_DATA: " .. score
+    local font = love.graphics.getFont()
+    local textWidth = font:getWidth(scoreText)
+
+    love.graphics.print(scoreText, 20, 20, 0, scoreScale, scoreScale)
 
     -- Interfaz de Game Over
     if gameState == "gameover" then
@@ -155,13 +206,24 @@ function love.draw()
         love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
 
         love.graphics.setColor(1, 1, 1)
-        love.graphics.printf("CONEXIÓN PERDIDA\nPresiona 'R' para reintentar", 0, centerY - 20, love.graphics.getWidth(), "center")
+        love.graphics.printf("RECOLECCIÓN FINALIZADA\nPUNTOS: " .. score .. "\n\nPresiona 'R' para Reiniciar",
+            0, centerY - 40, love.graphics.getWidth(), "center")
     end
 end
 
--- Función para detectar teclas sueltas (Reinicio)
+-- Función para detectar teclas
 function love.keypressed(key)
+    if key == "space" and gameState == "play" then
+        local newBullet = {
+            angle = ship.angle,
+            distance = ship.radius,
+            speed = 500
+        }
+        table.insert(bullets, newBullet)
+    end
+
+    -- Reinicio (Mantener)
     if key == "r" and gameState == "gameover" then
-        love.load() -- Reinicia todo el estado
+        love.load()
     end
 end
