@@ -22,6 +22,13 @@ function love.load()
     enemies = {}
     spawnTimer = 0
     spawnRate = 1.5 -- Crea un enemigo cada 1.5 segundos
+
+    -- Variables de distorsión
+    distortion = {
+        shake = 0,        -- Intensidad de la sacudida
+        intensity = 0,    -- Nivel de distorsión general
+        glitchTime = 0    -- Para el parpadeo de colores
+    }
 end
 
 function love.update(dt)
@@ -51,11 +58,20 @@ function love.update(dt)
         spawnRate = math.max(0.4, spawnRate - 0.01)
     end
 
+    -- Lógica de Distorsión
+    distortion.intensity = #enemies * 0.5 
+    distortion.shake = math.max(0, distortion.shake - dt * 5) -- Se reduce con el tiempo
+
     -- Actualizar enemigos
     for i = #enemies, 1, -1 do
         local e = enemies[i]
         e.distance = e.distance + e.speed * dt
         e.size = (e.distance / ship.radius) * 20 -- Crece según se acerca
+
+        -- Si un enemigo está muy cerca, la pantalla vibra
+        if math.abs(e.distance - ship.radius) < 50 then
+            distortion.shake = 2 -- Activa la sacudida
+        end
 
         -- DETECCIÓN DE COLISIÓN
         if math.abs(e.distance - ship.radius) < 15 then
@@ -71,23 +87,32 @@ function love.update(dt)
 end
 
 function love.draw()
-    -- 1. Dibujar el fondo "hipnótico" (Túnel)
-    love.graphics.setLineWidth(2)
-    for i = 0, 7 do
-        -- Cambia el color basándose en el tiempo para el efecto Polybius
-        local colorMod = (math.floor(timer * 10) + i) % 2
-        if colorMod == 0 then
-            love.graphics.setColor(0, 1, 0) -- Verde neón
-        else
-            love.graphics.setColor(0, 0.2, 0) -- Verde oscuro
+    -- APLICAR DISTORSIÓN DE CÁMARA
+    love.graphics.push()
+        -- 1. Movimiento suave
+        local offsetX = math.sin(timer * 2) * (distortion.intensity * 2)
+        local offsetY = math.cos(timer * 1.5) * (distortion.intensity * 2)
+
+        -- 2. Sacudida violenta
+        if distortion.shake > 0 then
+            offsetX = offsetX + math.random(-distortion.shake, distortion.shake) * 5
+            offsetY = offsetY + math.random(-distortion.shake, distortion.shake) * 5
         end
 
-        -- Dibujamos líneas que salen del centro
-        local lineAngle = i * (math.pi / 4) + (timer * 0.5)
-        local targetX = centerX + math.cos(lineAngle) * 1000
-        local targetY = centerY + math.sin(lineAngle) * 1000
-        love.graphics.line(centerX, centerY, targetX, targetY)
-    end
+    love.graphics.translate(offsetX, offsetY)
+
+        -- DIBUJA EL TÚNEL CON COLOR GLITCH
+        for i = 0, 7 do
+            -- Cambio de color basado en la intensidad de distorsión
+            if math.random() > 0.95 - (distortion.intensity * 0.01) then
+                love.graphics.setColor(1, 0, 1) -- Magenta inesperado
+            else
+                love.graphics.setColor(0, 1, 0) -- Verde estándar
+            end
+
+            local lineAngle = i * (math.pi / 4) + (timer * 0.5)
+            love.graphics.line(centerX, centerY, centerX + math.cos(lineAngle) * 1000, centerY + math.sin(lineAngle) * 1000)
+        end
 
     -- Enemigos
     for _, e in ipairs(enemies) do
@@ -121,6 +146,8 @@ function love.draw()
     if math.random() > 0.98 then
         love.graphics.print("OBEY", 10, 10, 0, 2, 2)
     end
+
+    love.graphics.pop()
 
     -- Interfaz de Game Over
     if gameState == "gameover" then
