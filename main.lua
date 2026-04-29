@@ -1,5 +1,9 @@
 -- Configuración inicial
 function love.load()
+
+    -- Variables de estado
+    gameState = "play"
+
     -- Variables de la nave
     ship = {}
     ship.angle = 0          -- Ángulo en radianes
@@ -21,6 +25,7 @@ function love.load()
 end
 
 function love.update(dt)
+    if gameState ~= "play" then return end
     -- Control de movimiento (Flechas)
     if love.keyboard.isDown("left") then
         ship.angle = ship.angle - ship.speed * dt
@@ -52,10 +57,16 @@ function love.update(dt)
         e.distance = e.distance + e.speed * dt
         e.size = (e.distance / ship.radius) * 20 -- Crece según se acerca
 
-        -- Eliminar si pasa de la nave
-        if e.distance > ship.radius + 50 then
-            table.remove(enemies, i)
+        -- DETECCIÓN DE COLISIÓN
+        if math.abs(e.distance - ship.radius) < 15 then
+            local angleDiff = math.abs((e.angle % (math.pi*2)) - (ship.angle % (math.pi*2)))
+            if angleDiff < 0.2 or angleDiff > (math.pi * 2 - 0.2) then
+                gameState = "gameover"
+            end
         end
+
+        -- Limpieza
+        if e.distance > ship.radius + 100 then table.remove(enemies, i) end
     end
 end
 
@@ -109,5 +120,21 @@ function love.draw()
     -- 4. El toque misterioso: Mensaje fugaz
     if math.random() > 0.98 then
         love.graphics.print("OBEY", 10, 10, 0, 2, 2)
+    end
+
+    -- Interfaz de Game Over
+    if gameState == "gameover" then
+        love.graphics.setColor(1, 0, 0, 0.7) -- Rojo semi-transparente
+        love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.printf("CONEXIÓN PERDIDA\nPresiona 'R' para reintentar", 0, centerY - 20, love.graphics.getWidth(), "center")
+    end
+end
+
+-- Función para detectar teclas sueltas (Reinicio)
+function love.keypressed(key)
+    if key == "r" and gameState == "gameover" then
+        love.load() -- Reinicia todo el estado
     end
 end
