@@ -1,0 +1,9 @@
+{
+    "Lua.diagnostics.globals": [
+        "love",
+        "estado_actual",
+        "actualizarFuentes",
+        "tamano_subtitulo",
+        "tamano_texto"
+    ]
+}
