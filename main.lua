@@ -1,72 +1,56 @@
--- Importar módulos
-require("tunnel")
-require("player")
-require("enemies")
+require("states.menu")
+require("states.game")
+require("states.gameover")
+require("entities.tunnel")
+require("entities.player")
+require("entities.enemies")
 
 function love.load()
-    -- Variables globales de estado
-    gameState = "play"
-    centerX = love.graphics.getWidth() / 2
-    centerY = love.graphics.getHeight() / 2
-    timer = 0
-    score = 0
-    scoreScale = 1
-    distortion = { shake = 0, intensity = 0 }
+    -- Variables globales útiles para todos los archivos
+    ScreenW = love.graphics.getWidth()
+    ScreenH = love.graphics.getHeight()
+    CenterX = ScreenW / 2
+    CenterY = ScreenH / 2
 
-    -- Cargar sistemas
-    Tunnel.load()
-    Player.load()
-    Enemies.load()
+    -- Inicializamos todas las escenas
+    Menu.load()
+    Game.load()
+    GameOver.load()
+
+    -- Variable de control de estado
+    currentState = "menu" -- Opciones: "menu", "play", "gameover", "pause"
 end
 
 function love.update(dt)
-    if gameState ~= "play" then return end
-
-    timer = timer + dt
-    scoreScale = math.max(1, scoreScale - dt * 5)
-    distortion.shake = math.max(0, distortion.shake - dt * 5)
-
-    -- Actualizar sistemas
-    Player.update(dt)
-    Enemies.update(dt)
+    if currentState == "menu" then
+        Menu.update(dt)
+    elseif currentState == "play" then
+        Game.update(dt)
+    elseif currentState == "gameover" then
+        GameOver.update(dt)
+    end
 end
 
 function love.draw()
-    -- EFECTOS Y GRÁFICOS DEL JUEGO
-    love.graphics.push()
-        Tunnel.applyDistortion()
-
-        Tunnel.draw()      -- Dibuja el tubo, telaraña y fondo
-        Enemies.draw()     -- Dibuja los cuadrados rojos
-        Player.draw()      -- Dibuja balas y nave
-
-        Tunnel.drawFog()   -- Dibuja el degradado negro al centro
-
-        -- Toque subliminal
-        if math.random() > 0.98 then
-            love.graphics.setColor(1,1,1)
-            love.graphics.print("OBEY", math.random(0,200), math.random(0,200), 0, 2, 2)
-        end
-    love.graphics.pop()
-
-    -- INTERFAZ DE USUARIO
-    love.graphics.setColor(1, 1, 1)
-    local scoreText = "SUJETO_DATA: " .. score
-    love.graphics.print(scoreText, 20, 20, 0, scoreScale, scoreScale)
-
-    -- Pantalla de Game Over
-    if gameState == "gameover" then
-        love.graphics.setColor(1, 0, 0, 0.7)
-        love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
-
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.printf("RECOLECCIÓN FINALIZADA\nPUNTOS: " .. score .. "\n\nPresiona 'R' para Reiniciar",
-            0, centerY - 40, love.graphics.getWidth(), "center")
+    if currentState == "menu" then
+        Menu.draw()
+    elseif currentState == "play" then
+        Game.draw()
+    elseif currentState == "gameover" then
+        GameOver.draw()
     end
 end
 
 function love.keypressed(key)
-    if key == "r" and gameState == "gameover" then
-        love.load()
+    if currentState == "menu" then
+        Menu.keypressed(key)
+    elseif currentState == "play" then
+        Game.keypressed(key)
+    elseif currentState == "gameover" then
+        GameOver.keypressed(key)
     end
 end
+
+-- main.lua
+-- Modificado (30/04/2026)
+-- Autor: Fernando Pérez S.
