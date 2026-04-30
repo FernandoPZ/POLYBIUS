@@ -1,18 +1,30 @@
 Game = {}
 
 function Game.load()
-    -- Variables específicas de la partida
     timer = 0
     score = 0
     scoreScale = 1
     distortion = { shake = 0, intensity = 0 }
-    -- Cargar las entidades
+
+    Game.hitStopTimer = 0
+
+    highScore = 0
+    if love.filesystem.getInfo("highscore.txt") then
+        local data = love.filesystem.read("highscore.txt")
+        highScore = tonumber(data) or 0
+    end
+
     Tunnel.load()
     Player.load()
     Enemies.load()
 end
 
 function Game.update(dt)
+    if Game.hitStopTimer > 0 then
+        Game.hitStopTimer = Game.hitStopTimer - dt
+        return
+    end
+
     timer = timer + dt
     scoreScale = math.max(1, scoreScale - dt * 5)
     distortion.shake = math.max(0, distortion.shake - dt * 5)
@@ -37,7 +49,6 @@ function Game.draw()
         end
     love.graphics.pop()
 
-    -- Marcador
     love.graphics.setColor(1, 1, 1)
     local scoreText = "SUJETO_DATA: " .. score
     love.graphics.print(scoreText, 20, 20, 0, scoreScale, scoreScale)
@@ -45,9 +56,10 @@ end
 
 function Game.keypressed(key)
     if key == "escape" then
+        -- Futuro menú de pausa
     end
 end
 
--- game.lua
+-- states/game.lua
 -- Modificado (30/04/2026)
 -- Autor: Fernando Pérez S.

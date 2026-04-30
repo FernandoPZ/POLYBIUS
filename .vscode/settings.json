@@ -12,6 +12,11 @@
         "score",
         "scoreScale",
         "distortion",
-        "currentState"
+        "currentState",
+        "highScore",
+        "isNewRecord",
+        "mainCanvas",
+        "crtShader",
+        "globalTime"
     ]
 }

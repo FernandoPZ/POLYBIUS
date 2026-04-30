@@ -14,23 +14,11 @@ function Enemies.update(dt)
         local enemy = { angle = math.random() * math.pi * 2, distance = 0, flashTimer = 0 }
 
         if roll > 0.9 then
-            enemy.type = "grande"
-            enemy.hp = 10
-            enemy.speed = 30
-            enemy.sizeBase = 8
-            enemy.scoreValue = 1000
+            enemy.type = "grande"; enemy.hp = 10; enemy.speed = 30; enemy.sizeBase = 8; enemy.scoreValue = 1000
         elseif roll > 0.6 then
-            enemy.type = "nave"
-            enemy.hp = 3
-            enemy.speed = 50
-            enemy.sizeBase = 4
-            enemy.scoreValue = 300
+            enemy.type = "nave"; enemy.hp = 3; enemy.speed = 50; enemy.sizeBase = 4; enemy.scoreValue = 300
         else
-            enemy.type = "meteorito"
-            enemy.hp = 1
-            enemy.speed = 60
-            enemy.sizeBase = 2
-            enemy.scoreValue = 100
+            enemy.type = "meteorito"; enemy.hp = 1; enemy.speed = 60; enemy.sizeBase = 2; enemy.scoreValue = 100
             enemy.vertices = {}
             local numPoints = math.random(5, 8)
             for v = 1, numPoints do
@@ -40,7 +28,6 @@ function Enemies.update(dt)
                 table.insert(enemy.vertices, math.sin(a) * r)
             end
         end
-
         table.insert(Enemies.list, enemy)
         Enemies.spawnTimer = 0
         Enemies.spawnRate = math.max(0.5, Enemies.spawnRate - 0.02)
@@ -59,6 +46,7 @@ function Enemies.update(dt)
             local angleDiff = math.abs((e.angle % (math.pi*2)) - (Player.ship.angle % (math.pi*2)))
             if angleDiff < 0.2 or angleDiff > (math.pi * 2 - 0.2) then
                 currentState = "gameover"
+                GameOver.checkRecord()
                 distortion.shake = 4
             end
         end
@@ -79,8 +67,8 @@ function Enemies.update(dt)
                     scoreScale = 2
                     distortion.shake = 1
 
-                    -- LLUVIA DE METEOROS
                     if e.type == "grande" then
+                        Game.hitStopTimer = 0.1
                         for m = 1, 5 do
                             local meteor = {
                                 type = "meteorito", hp = 1, speed = e.speed * 2, sizeBase = 2,
@@ -96,6 +84,8 @@ function Enemies.update(dt)
                             end
                             table.insert(Enemies.list, meteor)
                         end
+                    else
+                        Game.hitStopTimer = 0.03
                     end
                     table.remove(Enemies.list, i)
                 else
@@ -120,8 +110,7 @@ function Enemies.draw()
             love.graphics.translate(ex, ey)
             love.graphics.rotate(e.angle + timer * 2)
 
-            if e.flashTimer > 0 then
-                love.graphics.setColor(1, 1, 1)
+            if e.flashTimer > 0 then love.graphics.setColor(1, 1, 1)
             else
                 if e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9)
                 elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0)
@@ -138,7 +127,6 @@ function Enemies.draw()
             elseif e.type == "nave" then
                 love.graphics.polygon("line", 0, e.size/2, -e.size/2, -e.size/2, -e.size/2, e.size/2, -e.size/2)
             elseif e.type == "grande" then
-                -- DISEÑO ALIENÍGENA
                 local w, h = e.size, e.size / 1.5
                 love.graphics.rectangle("line", -w/2, -h/2, w, h)
                 love.graphics.rectangle("line", -w/4, -h/4, w/2, h/2)
@@ -151,6 +139,6 @@ function Enemies.draw()
     end
 end
 
--- enemies.lua
+-- entities/enemies.lua
 -- Modificado (30/04/2026)
 -- Autor: Fernando Pérez S.
