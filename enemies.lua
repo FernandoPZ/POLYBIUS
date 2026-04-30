@@ -3,7 +3,7 @@ Enemies = {}
 function Enemies.load()
     Enemies.list = {}
     Enemies.spawnTimer = 0
-    Enemies.spawnRate = 2.0 -- Generación un poco más lenta al inicio
+    Enemies.spawnRate = 2.0
 end
 
 function Enemies.update(dt)
@@ -27,18 +27,17 @@ function Enemies.update(dt)
         e.distance = e.distance + e.speed * dt
         e.size = (e.distance / Player.ship.radius) * 20
 
-        -- Si está cerca, pantalla vibra
-        if math.abs(e.distance - Player.ship.radius) < 50 then distortion.shake = 2 end
 
-        -- Detección de colisión con el JUGADOR
+        -- 1. DETECCIÓN DE COLISIÓN CON LA NAVE
         if math.abs(e.distance - Player.ship.radius) < 15 then
             local angleDiff = math.abs((e.angle % (math.pi*2)) - (Player.ship.angle % (math.pi*2)))
             if angleDiff < 0.2 or angleDiff > (math.pi * 2 - 0.2) then
                 gameState = "gameover"
+                distortion.shake = 4
             end
         end
 
-        -- Detección de colisión con BALAS
+        -- 2. DETECCIÓN DE COLISIÓN CON BALAS
         local enemyKilled = false
         for j = #Player.bullets, 1, -1 do
             local b = Player.bullets[j]
@@ -48,7 +47,8 @@ function Enemies.update(dt)
             if distDiff < 20 and (angleDiff < 0.2 or angleDiff > (math.pi*2 - 0.2)) then
                 score = score + 100
                 scoreScale = 2
-                distortion.shake = 0.5
+
+                distortion.shake = 1
 
                 table.remove(Player.bullets, j)
                 enemyKilled = true
@@ -56,6 +56,7 @@ function Enemies.update(dt)
             end
         end
 
+        -- Limpieza de enemigos
         if enemyKilled then
             table.remove(Enemies.list, i)
         elseif e.distance > Player.ship.radius + 100 then
