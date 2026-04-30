@@ -67,6 +67,9 @@ function Enemies.update(dt)
                     scoreScale = 2
                     distortion.shake = 1
 
+                    local ex = CenterX + math.cos(e.angle) * e.distance
+                    local ey = CenterY + math.sin(e.angle) * e.distance
+                    Particles.spawn(ex, ey, e.type)
                     if e.type == "grande" then
                         Game.hitStopTimer = 0.1
                         for m = 1, 5 do
@@ -110,7 +113,8 @@ function Enemies.draw()
             love.graphics.translate(ex, ey)
             love.graphics.rotate(e.angle + timer * 2)
 
-            if e.flashTimer > 0 then love.graphics.setColor(1, 1, 1)
+            if e.flashTimer > 0 then
+                love.graphics.setColor(1, 1, 1)
             else
                 if e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9)
                 elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0)
@@ -118,12 +122,10 @@ function Enemies.draw()
             end
 
             if e.type == "meteorito" then
-                local points = {}
-                for v = 1, #e.vertices, 2 do
-                    table.insert(points, e.vertices[v] * (e.size / 2))
-                    table.insert(points, e.vertices[v+1] * (e.size / 2))
-                end
-                love.graphics.polygon("line", points)
+                love.graphics.push()
+                love.graphics.scale(e.size / 2, e.size / 2)
+                love.graphics.polygon("line", e.vertices)
+                love.graphics.pop()
             elseif e.type == "nave" then
                 love.graphics.polygon("line", 0, e.size/2, -e.size/2, -e.size/2, -e.size/2, e.size/2, -e.size/2)
             elseif e.type == "grande" then

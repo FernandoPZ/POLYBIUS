@@ -1,3 +1,5 @@
+require("entities.particles")
+
 Game = {}
 
 function Game.load()
@@ -17,6 +19,7 @@ function Game.load()
     Tunnel.load()
     Player.load()
     Enemies.load()
+    Particles.load()
 end
 
 function Game.update(dt)
@@ -31,6 +34,7 @@ function Game.update(dt)
 
     Player.update(dt)
     Enemies.update(dt)
+    Particles.update(dt)
 end
 
 function Game.draw()
@@ -39,6 +43,7 @@ function Game.draw()
 
         Tunnel.draw()
         Enemies.draw()
+        Particles.draw()
         Player.draw()
 
         Tunnel.drawFog()
