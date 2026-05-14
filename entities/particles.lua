@@ -1,4 +1,9 @@
-Particles = {}
+-- entities/particles.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
+
+local Particles = {}
+Particles.list = {}
 
 function Particles.load()
     Particles.list = {}
@@ -44,6 +49,4 @@ function Particles.draw()
     end
 end
 
--- entities/particles.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.
+return Particles

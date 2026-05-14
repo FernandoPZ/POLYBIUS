@@ -1,20 +1,37 @@
-require("entities.particles")
+-- states/game.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
 
-Game = {}
+local Tunnel = require("entities.tunnel")
+local Player = require("entities.player")
+local Enemies = require("entities.enemies")
+local Particles = require("entities.particles")
 
-function Game.load()
-    timer = 0
-    score = 0
-    scoreScale = 1
-    distortion = { shake = 0, intensity = 0 }
+local Game = {}
 
-    Game.hitStopTimer = 0
+-- Variables de estado
+Game.score = 0
+Game.scoreScale = 1
+Game.hitStopTimer = 0
+Game.highScore = 0
+Game.timer = 0
+Game.distortion = { shake = 0, intensity = 0 }
 
-    highScore = 0
+function Game.init()
+    -- Cargar highscore
     if love.filesystem.getInfo("highscore.txt") then
         local data = love.filesystem.read("highscore.txt")
-        highScore = tonumber(data) or 0
+        Game.highScore = tonumber(data) or 0
     end
+end
+
+function Game.load()
+    Game.timer = 0
+    Game.score = 0
+    Game.scoreScale = 1
+    Game.distortion.shake = 0
+    Game.distortion.intensity = 0
+    Game.hitStopTimer = 0
 
     Tunnel.load()
     Player.load()
@@ -28,43 +45,41 @@ function Game.update(dt)
         return
     end
 
-    timer = timer + dt
-    scoreScale = math.max(1, scoreScale - dt * 5)
-    distortion.shake = math.max(0, distortion.shake - dt * 5)
+    Game.timer = Game.timer + dt
+    Game.scoreScale = math.max(1, Game.scoreScale - dt * 5)
+    Game.distortion.shake = math.max(0, Game.distortion.shake - dt * 5)
 
     Player.update(dt)
-    Enemies.update(dt)
+    Enemies.update(dt, Game)
     Particles.update(dt)
 end
 
 function Game.draw()
     love.graphics.push()
-        Tunnel.applyDistortion()
+        Tunnel.applyDistortion(Game.timer, Game.distortion)
 
-        Tunnel.draw()
-        Enemies.draw()
+        Tunnel.draw(Game.timer, Game.distortion)
+        Enemies.draw(Game.timer)
         Particles.draw()
         Player.draw()
 
         Tunnel.drawFog()
 
+        -- Efecto Subliminal "OBEY"
         if math.random() > 0.98 then
-            love.graphics.setColor(1, 1, 1)
+            love.graphics.setColor(1, 1, 1, 0.3)
             love.graphics.print("OBEY", math.random(0,200), math.random(0,200), 0, 2, 2)
         end
     love.graphics.pop()
 
+    -- UI
     love.graphics.setColor(1, 1, 1)
-    local scoreText = "SUJETO_DATA: " .. score
-    love.graphics.print(scoreText, 20, 20, 0, scoreScale, scoreScale)
+    local scoreText = "SUJETO_DATA: " .. Game.score
+    love.graphics.print(scoreText, 20, 20, 0, Game.scoreScale, Game.scoreScale)
 end
 
 function Game.keypressed(key)
-    if key == "escape" then
-        -- Futuro menú de pausa
-    end
+    if key == "escape" then ChangeState("menu") end
 end
 
--- states/game.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.
+return Game

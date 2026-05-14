@@ -1,15 +1,25 @@
-Enemies = {}
+-- entities/enemies.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
+
+local Player = require("entities.player")
+local Particles = require("entities.particles")
+
+local Enemies = {}
+Enemies.list = {}
+local spawnTimer = 0
+local spawnRate = 2.0
 
 function Enemies.load()
     Enemies.list = {}
-    Enemies.spawnTimer = 0
-    Enemies.spawnRate = 2.0
+    spawnTimer = 0
+    spawnRate = 2.0
 end
 
-function Enemies.update(dt)
-    Enemies.spawnTimer = Enemies.spawnTimer + dt
+function Enemies.update(dt, gameContext)
+    spawnTimer = spawnTimer + dt
 
-    if Enemies.spawnTimer >= Enemies.spawnRate then
+    if spawnTimer >= spawnRate then
         local roll = math.random()
         local enemy = { angle = math.random() * math.pi * 2, distance = 0, flashTimer = 0 }
 
@@ -20,20 +30,20 @@ function Enemies.update(dt)
         else
             enemy.type = "meteorito"; enemy.hp = 1; enemy.speed = 60; enemy.sizeBase = 2; enemy.scoreValue = 100
             enemy.vertices = {}
-            local numPoints = math.random(5, 8)
-            for v = 1, numPoints do
-                local a = (v / numPoints) * math.pi * 2
+            local points = math.random(5, 8)
+            for v = 1, points do
+                local a = (v / points) * math.pi * 2
                 local r = math.random(60, 140) / 100
                 table.insert(enemy.vertices, math.cos(a) * r)
                 table.insert(enemy.vertices, math.sin(a) * r)
             end
         end
         table.insert(Enemies.list, enemy)
-        Enemies.spawnTimer = 0
-        Enemies.spawnRate = math.max(0.5, Enemies.spawnRate - 0.02)
+        spawnTimer = 0
+        spawnRate = math.max(0.5, spawnRate - 0.02)
     end
 
-    distortion.intensity = #Enemies.list * 0.5
+    gameContext.distortion.intensity = #Enemies.list * 0.5
 
     for i = #Enemies.list, 1, -1 do
         local e = Enemies.list[i]
@@ -42,57 +52,39 @@ function Enemies.update(dt)
 
         if e.flashTimer > 0 then e.flashTimer = e.flashTimer - dt end
 
+        -- Colisión con Jugador
         if math.abs(e.distance - Player.ship.radius) < 15 then
-            local angleDiff = math.abs((e.angle % (math.pi*2)) - (Player.ship.angle % (math.pi*2)))
-            if angleDiff < 0.2 or angleDiff > (math.pi * 2 - 0.2) then
-                currentState = "gameover"
-                GameOver.checkRecord()
-                distortion.shake = 4
+            local aDiff = math.abs((e.angle % (math.pi*2)) - (Player.ship.angle % (math.pi*2)))
+            if aDiff < 0.2 or aDiff > (math.pi * 2 - 0.2) then
+                gameContext.distortion.shake = 4
+                ChangeState("gameover", gameContext.score)
+                return
             end
         end
 
+        -- Colisión con Balas
         for j = #Player.bullets, 1, -1 do
             local b = Player.bullets[j]
-            local distDiff = math.abs(b.distance - e.distance)
-            local angleDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
-            local hitThreshold = 10 + (e.sizeBase * 2)
+            local dDiff = math.abs(b.distance - e.distance)
+            local aDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
+            local threshold = 10 + (e.sizeBase * 2)
 
-            if distDiff < hitThreshold and (angleDiff < 0.2 or angleDiff > (math.pi*2 - 0.2)) then
+            if dDiff < threshold and (aDiff < 0.2 or aDiff > (math.pi*2 - 0.2)) then
                 e.hp = e.hp - 1
                 e.flashTimer = 0.05
                 table.remove(Player.bullets, j)
 
                 if e.hp <= 0 then
-                    score = score + e.scoreValue
-                    scoreScale = 2
-                    distortion.shake = 1
+                    gameContext.score = gameContext.score + e.scoreValue
+                    gameContext.scoreScale = 2
+                    gameContext.distortion.shake = 1
 
                     local ex = CenterX + math.cos(e.angle) * e.distance
                     local ey = CenterY + math.sin(e.angle) * e.distance
                     Particles.spawn(ex, ey, e.type)
-                    if e.type == "grande" then
-                        Game.hitStopTimer = 0.1
-                        for m = 1, 5 do
-                            local meteor = {
-                                type = "meteorito", hp = 1, speed = e.speed * 2, sizeBase = 2,
-                                scoreValue = 50, distance = e.distance,
-                                angle = e.angle + (math.random() - 0.5) * 1.5, flashTimer = 0, vertices = {}
-                            }
-                            local numPoints = math.random(5, 8)
-                            for v = 1, numPoints do
-                                local a = (v / numPoints) * math.pi * 2
-                                local r = math.random(60, 140) / 100
-                                table.insert(meteor.vertices, math.cos(a) * r)
-                                table.insert(meteor.vertices, math.sin(a) * r)
-                            end
-                            table.insert(Enemies.list, meteor)
-                        end
-                    else
-                        Game.hitStopTimer = 0.03
-                    end
+
+                    gameContext.hitStopTimer = (e.type == "grande") and 0.1 or 0.03
                     table.remove(Enemies.list, i)
-                else
-                    distortion.shake = 0.2
                 end
                 break
             end
@@ -104,7 +96,7 @@ function Enemies.update(dt)
     end
 end
 
-function Enemies.draw()
+function Enemies.draw(timer)
     for _, e in ipairs(Enemies.list) do
         local ex = CenterX + math.cos(e.angle) * e.distance
         local ey = CenterY + math.sin(e.angle) * e.distance
@@ -113,13 +105,10 @@ function Enemies.draw()
             love.graphics.translate(ex, ey)
             love.graphics.rotate(e.angle + timer * 2)
 
-            if e.flashTimer > 0 then
-                love.graphics.setColor(1, 1, 1)
-            else
-                if e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9)
-                elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0)
-                else love.graphics.setColor(1, 0.2, 0.2) end
-            end
+            if e.flashTimer > 0 then love.graphics.setColor(1, 1, 1)
+            elseif e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9)
+            elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0)
+            else love.graphics.setColor(1, 0.2, 0.2) end
 
             if e.type == "meteorito" then
                 love.graphics.push()
@@ -127,20 +116,13 @@ function Enemies.draw()
                 love.graphics.polygon("line", e.vertices)
                 love.graphics.pop()
             elseif e.type == "nave" then
-                love.graphics.polygon("line", 0, e.size/2, -e.size/2, -e.size/2, -e.size/2, e.size/2, -e.size/2)
+                love.graphics.polygon("line", 0, e.size/2, -e.size/2, -e.size/2, e.size/2, -e.size/2)
             elseif e.type == "grande" then
                 local w, h = e.size, e.size / 1.5
                 love.graphics.rectangle("line", -w/2, -h/2, w, h)
-                love.graphics.rectangle("line", -w/4, -h/4, w/2, h/2)
-                love.graphics.line(-w/2, 0, -w, -h/2)
-                love.graphics.line(-w/2, 0, -w, h/2)
-                love.graphics.line(w/2, 0, w, -h/2)
-                love.graphics.line(w/2, 0, w, h/2)
             end
         love.graphics.pop()
     end
 end
 
--- entities/enemies.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.
+return Enemies

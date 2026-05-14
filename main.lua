@@ -1,24 +1,45 @@
-require("states.menu")
-require("states.game")
-require("states.gameover")
-require("entities.tunnel")
-require("entities.player")
-require("entities.enemies")
+-- main.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
+
+local Menu = require("states.menu")
+local Game = require("states.game")
+local GameOver = require("states.gameover")
+
+-- Diccionario de estados
+local states = {
+    menu = Menu,
+    play = Game,
+    gameover = GameOver
+}
+
+local activeState = nil
+local mainCanvas = nil
+local crtShader = nil
+local globalTime = 0
+
+-- Variables globales esenciales
+_G.ScreenW = love.graphics.getWidth()
+_G.ScreenH = love.graphics.getHeight()
+_G.CenterX = _G.ScreenW / 2
+_G.CenterY = _G.ScreenH / 2
+
+-- Función global para cambiar de estado
+function _G.ChangeState(stateName, ...)
+    if states[stateName] then
+        activeState = states[stateName]
+        if activeState.load then activeState.load(...) end
+    end
+end
 
 function love.load()
-    -- Variables globales
-    ScreenW = love.graphics.getWidth()
-    ScreenH = love.graphics.getHeight()
-    CenterX = ScreenW / 2
-    CenterY = ScreenH / 2
-    mainCanvas = love.graphics.newCanvas(ScreenW, ScreenH)
+    -- Configuración del Canvas y Shader
+    mainCanvas = love.graphics.newCanvas(_G.ScreenW, _G.ScreenH)
 
-    -- SHADER CRT
     local crtCode = [[
         extern vec2 resolution;
         extern float time;
 
-        // Función para curvar las coordenadas UV (Efecto lente de tubo)
         vec2 curve(vec2 uv) {
             uv = (uv - 0.5) * 2.0;
             uv *= 1.1;
@@ -31,20 +52,13 @@ function love.load()
 
         vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
             vec2 uv = curve(texture_coords);
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return vec4(0.0, 0.0, 0.0, 1.0);
 
-            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-                return vec4(0.0, 0.0, 0.0, 1.0);
-            }
-
-            // Aberración Cromática
             float r = Texel(texture, uv + vec2(0.003, 0.0)).r;
             float g = Texel(texture, uv).g;
             float b = Texel(texture, uv - vec2(0.003, 0.0)).b;
 
-            // Scanlines dinámicas que suben suavemente
             float scanline = sin(uv.y * resolution.y * 1.5 + time * 5.0) * 0.04;
-            
-            // Viñeteado para oscurecer las esquinas
             float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
             vignette = clamp(pow(16.0 * vignette, 0.25), 0.0, 1.0);
 
@@ -58,32 +72,32 @@ function love.load()
     ]]
 
     crtShader = love.graphics.newShader(crtCode)
-    crtShader:send("resolution", {ScreenW, ScreenH})
-    globalTime = 0
+    crtShader:send("resolution", {_G.ScreenW, _G.ScreenH})
 
-    Menu.load()
-    Game.load()
-    GameOver.load()
+    for _, state in pairs(states) do
+        if state.init then state.init() end
+    end
 
-    currentState = "menu"
+    ChangeState("menu")
 end
 
 function love.update(dt)
     globalTime = globalTime + dt
-    crtShader:send("time", globalTime)
-    if currentState == "menu" then Menu.update(dt)
-    elseif currentState == "play" then Game.update(dt)
-    elseif currentState == "gameover" then GameOver.update(dt)
+    if crtShader and crtShader:hasExtern("time") then crtShader:send("time", globalTime) end
+
+    if activeState and activeState.update then
+        activeState.update(dt)
     end
 end
 
 function love.draw()
     love.graphics.setCanvas(mainCanvas)
     love.graphics.clear()
-    if currentState == "menu" then Menu.draw()
-    elseif currentState == "play" then Game.draw()
-    elseif currentState == "gameover" then GameOver.draw()
+
+    if activeState and activeState.draw then
+        activeState.draw()
     end
+
     love.graphics.setCanvas()
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setShader(crtShader)
@@ -92,12 +106,7 @@ function love.draw()
 end
 
 function love.keypressed(key)
-    if currentState == "menu" then Menu.keypressed(key)
-    elseif currentState == "play" then Game.keypressed(key)
-    elseif currentState == "gameover" then GameOver.keypressed(key)
+    if activeState and activeState.keypressed then
+        activeState.keypressed(key)
     end
 end
-
--- main.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.

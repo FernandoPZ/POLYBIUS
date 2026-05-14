@@ -1,10 +1,21 @@
-Player = {}
+-- entities/player.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
+
+local Player = {}
+
+-- Atributos públicos
+Player.ship = { angle = 0, speed = 3, radius = 260, size = 15 }
+Player.bullets = {}
+
+-- Atributos privados
+local shootCooldown = 0
+local fireRate = 0.15
 
 function Player.load()
-    Player.ship = { angle = 0, speed = 3, radius = 260, size = 15 }
+    Player.ship.angle = 0
     Player.bullets = {}
-    Player.shootCooldown = 0
-    Player.fireRate = 0.15
+    shootCooldown = 0
 end
 
 function Player.update(dt)
@@ -14,11 +25,11 @@ function Player.update(dt)
         Player.ship.angle = Player.ship.angle + Player.ship.speed * dt
     end
 
-    Player.shootCooldown = Player.shootCooldown - dt
-    if love.keyboard.isDown("space") and Player.shootCooldown <= 0 then
+    shootCooldown = shootCooldown - dt
+    if love.keyboard.isDown("space") and shootCooldown <= 0 then
         local newBullet = { angle = Player.ship.angle, distance = Player.ship.radius, speed = 500 }
         table.insert(Player.bullets, newBullet)
-        Player.shootCooldown = Player.fireRate
+        shootCooldown = fireRate
     end
 
     for i = #Player.bullets, 1, -1 do
@@ -31,13 +42,13 @@ end
 function Player.draw()
     love.graphics.setColor(1, 1, 0)
     for _, b in ipairs(Player.bullets) do
-        local bx = CenterX + math.cos(b.angle) * b.distance
-        local by = CenterY + math.sin(b.angle) * b.distance
+        local bx = _G.CenterX + math.cos(b.angle) * b.distance
+        local by = _G.CenterY + math.sin(b.angle) * b.distance
         love.graphics.circle("fill", bx, by, 3)
     end
 
-    local shipX = CenterX + math.cos(Player.ship.angle) * Player.ship.radius
-    local shipY = CenterY + math.sin(Player.ship.angle) * Player.ship.radius
+    local shipX = _G.CenterX + math.cos(Player.ship.angle) * Player.ship.radius
+    local shipY = _G.CenterY + math.sin(Player.ship.angle) * Player.ship.radius
 
     love.graphics.setColor(1, 1, 0.7)
     love.graphics.push()
@@ -47,6 +58,4 @@ function Player.draw()
     love.graphics.pop()
 end
 
--- player.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.
+return Player

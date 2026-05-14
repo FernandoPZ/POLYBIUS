@@ -1,22 +1,6 @@
 {
     "Lua.diagnostics.globals": [
-        "love",
-        "estado_actual",
-        "actualizarFuentes",
-        "tamano_subtitulo",
-        "tamano_texto",
-        "gameState",
-        "centerX",
-        "centerY",
-        "timer",
-        "score",
-        "scoreScale",
-        "distortion",
-        "currentState",
-        "highScore",
-        "isNewRecord",
-        "mainCanvas",
-        "crtShader",
-        "globalTime"
-    ]
+        "love"
+    ],
+    "Lua.workspace.checkThirdParty": false
 }

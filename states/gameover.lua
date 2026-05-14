@@ -1,13 +1,25 @@
-GameOver = {}
+-- states/gameover.lua
+-- Modificado (2026-05-14)
+-- Autor: Fernando Pérez S.
 
-function GameOver.load()
-    isNewRecord = false
+local GameOver = {}
+
+local finalScore = 0
+local highScore = 0
+local isNewRecord = false
+
+function GameOver.init()
+    if love.filesystem.getInfo("highscore.txt") then
+        highScore = tonumber(love.filesystem.read("highscore.txt")) or 0
+    end
 end
 
-function GameOver.checkRecord()
+function GameOver.load(score)
+    finalScore = score or 0
     isNewRecord = false
-    if score > highScore then
-        highScore = score
+
+    if finalScore > highScore then
+        highScore = finalScore
         isNewRecord = true
         love.filesystem.write("highscore.txt", tostring(highScore))
     end
@@ -17,33 +29,25 @@ function GameOver.update(dt)
 end
 
 function GameOver.draw()
-    Game.draw()
+    love.graphics.setColor(1, 0, 0, 0.2)
+    love.graphics.rectangle("fill", 0, 0, _G.ScreenW, _G.ScreenH)
 
-    love.graphics.setColor(1, 0, 0, 0.7)
-    love.graphics.rectangle("fill", 0, 0, ScreenW, ScreenH)
-
-    love.graphics.setColor(1, 1, 1)
-
-    -- Notificacion de nuevo record
     if isNewRecord then
         love.graphics.setColor(1, 1, 0)
-        love.graphics.printf("¡NUEVO RÉCORD DE DATOS!", 0, CenterY - 80, ScreenW, "center")
+        love.graphics.printf("¡NUEVO RÉCORD DE DATOS!", 0, _G.CenterY - 80, _G.ScreenW, "center")
     end
 
     love.graphics.setColor(1, 1, 1)
-    love.graphics.printf("NAVE DESTRUIDA\nPUNTOS: " .. score .. "\nRÉCORD MÁXIMO: " .. highScore .. "\n\nPresiona 'R' para Reiniciar\nPresiona 'ESC' para salir al menú",
-        0, CenterY - 40, ScreenW, "center")
+    love.graphics.printf("NAVE DESTRUIDA\nPUNTOS: " .. finalScore .. "\nRÉCORD MÁXIMO: " .. highScore .. "\n\nPresiona 'R' para Reiniciar\nPresiona 'ESC' para salir al menú",
+        0, _G.CenterY - 40, _G.ScreenW, "center")
 end
 
 function GameOver.keypressed(key)
     if key == "r" then
-        Game.load()
-        currentState = "play"
+        _G.ChangeState("play")
     elseif key == "escape" then
-        currentState = "menu"
+        _G.ChangeState("menu")
     end
 end
 
--- states/gameover.lua
--- Modificado (30/04/2026)
--- Autor: Fernando Pérez S.
+return GameOver
