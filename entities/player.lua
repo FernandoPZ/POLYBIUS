@@ -4,18 +4,35 @@
 
 local Player = {}
 
--- Atributos públicos
 Player.ship = { angle = 0, speed = 3, radius = 260, size = 15 }
 Player.bullets = {}
+local MAX_BULLETS = 100
 
--- Atributos privados
 local shootCooldown = 0
 local fireRate = 0.15
 
 function Player.load()
     Player.ship.angle = 0
-    Player.bullets = {}
     shootCooldown = 0
+    Player.bullets = {}
+
+    for i = 1, MAX_BULLETS do
+        table.insert(Player.bullets, {
+            active = false,
+            angle = 0,
+            distance = 0,
+            speed = 0
+        })
+    end
+end
+
+local function getInactiveBullet()
+    for i = 1, MAX_BULLETS do
+        if not Player.bullets[i].active then
+            return Player.bullets[i]
+        end
+    end
+    return nil
 end
 
 function Player.update(dt)
@@ -27,24 +44,36 @@ function Player.update(dt)
 
     shootCooldown = shootCooldown - dt
     if love.keyboard.isDown("space") and shootCooldown <= 0 then
-        local newBullet = { angle = Player.ship.angle, distance = Player.ship.radius, speed = 500 }
-        table.insert(Player.bullets, newBullet)
-        shootCooldown = fireRate
+        local b = getInactiveBullet()
+        if b then
+            b.active = true
+            b.angle = Player.ship.angle
+            b.distance = Player.ship.radius
+            b.speed = 500
+            shootCooldown = fireRate
+        end
     end
 
-    for i = #Player.bullets, 1, -1 do
+    for i = 1, MAX_BULLETS do
         local b = Player.bullets[i]
-        b.distance = b.distance - b.speed * dt
-        if b.distance < 0 then table.remove(Player.bullets, i) end
+        if b.active then
+            b.distance = b.distance - b.speed * dt
+            if b.distance < 0 then
+                b.active = false
+            end
+        end
     end
 end
 
 function Player.draw()
     love.graphics.setColor(1, 1, 0)
-    for _, b in ipairs(Player.bullets) do
-        local bx = _G.CenterX + math.cos(b.angle) * b.distance
-        local by = _G.CenterY + math.sin(b.angle) * b.distance
-        love.graphics.circle("fill", bx, by, 3)
+    for i = 1, MAX_BULLETS do
+        local b = Player.bullets[i]
+        if b.active then
+            local bx = _G.CenterX + math.cos(b.angle) * b.distance
+            local by = _G.CenterY + math.sin(b.angle) * b.distance
+            love.graphics.circle("fill", bx, by, 3)
+        end
     end
 
     local shipX = _G.CenterX + math.cos(Player.ship.angle) * Player.ship.radius

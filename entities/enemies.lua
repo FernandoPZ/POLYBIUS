@@ -92,30 +92,34 @@ function Enemies.update(dt, gameContext)
             end
 
             -- Colisión con Balas
-            for j = #Player.bullets, 1, -1 do
+            for j = 1, #Player.bullets do
                 local b = Player.bullets[j]
-                local dDiff = math.abs(b.distance - e.distance)
-                local aDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
-                local threshold = 10 + (e.sizeBase * 2)
 
-                if dDiff < threshold and (aDiff < 0.2 or aDiff > (math.pi*2 - 0.2)) then
-                    e.hp = e.hp - 1
-                    e.flashTimer = 0.05
-                    table.remove(Player.bullets, j)
+                if b.active then
+                    local dDiff = math.abs(b.distance - e.distance)
+                    local aDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
+                    local threshold = 10 + (e.sizeBase * 2)
 
-                    if e.hp <= 0 then
-                        gameContext.score = gameContext.score + e.scoreValue
-                        gameContext.scoreScale = 2
-                        gameContext.distortion.shake = 1
+                    if dDiff < threshold and (aDiff < 0.2 or aDiff > (math.pi*2 - 0.2)) then
+                        e.hp = e.hp - 1
+                        e.flashTimer = 0.05
 
-                        local ex = _G.CenterX + math.cos(e.angle) * e.distance
-                        local ey = _G.CenterY + math.sin(e.angle) * e.distance
-                        Particles.spawn(ex, ey, e.type)
+                        b.active = false
 
-                        gameContext.hitStopTimer = (e.type == "grande") and 0.1 or 0.03
-                        e.active = false
+                        if e.hp <= 0 then
+                            gameContext.score = gameContext.score + e.scoreValue
+                            gameContext.scoreScale = 2
+                            gameContext.distortion.shake = 1
+
+                            local ex = _G.CenterX + math.cos(e.angle) * e.distance
+                            local ey = _G.CenterY + math.sin(e.angle) * e.distance
+                            Particles.spawn(ex, ey, e.type)
+
+                            gameContext.hitStopTimer = (e.type == "grande") and 0.1 or 0.03
+                            e.active = false
+                        end
+                        break
                     end
-                    break
                 end
             end
 
