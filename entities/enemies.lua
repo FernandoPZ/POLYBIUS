@@ -175,9 +175,17 @@ function Enemies.update(dt, gameContext)
                         b.active = false
 
                         if e.hp <= 0 then
-                            gameContext.score = gameContext.score + e.scoreValue
+                            -- LÓGICA DE COMBO Y MULTIPLICADOR
+                            gameContext.combo = gameContext.combo + 1
+                            gameContext.comboTimer = gameContext.maxComboTimer
+                            -- El multiplicador sube de 1 en 1 por cada 5 enemigos destruidos, límite en x10
+                            gameContext.multiplier = math.min(10, 1 + math.floor(gameContext.combo / 5))
+
+                            -- Sumamos el puntaje multiplicado
+                            gameContext.score = gameContext.score + (e.scoreValue * gameContext.multiplier)
                             gameContext.scoreScale = 2
-                            gameContext.distortion.shake = 1
+
+                            gameContext.distortion.shake = 1 + (gameContext.multiplier * 0.5)
 
                             local ex = _G.CenterX + math.cos(e.angle) * e.distance
                             local ey = _G.CenterY + math.sin(e.angle) * e.distance

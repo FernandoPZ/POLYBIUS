@@ -17,9 +17,15 @@ Game.highScore = 0
 Game.timer = 0
 Game.distortion = { shake = 0, intensity = 0 }
 
--- NUEVAS: Variables para el control de Pausa
+-- Variables del Sistema de Combos
+Game.combo = 0
+Game.comboTimer = 0
+Game.maxComboTimer = 2.5
+Game.multiplier = 1
+
+-- Variables para el control de Pausa
 local isPaused = false
-local pauseSelection = 1 -- 1 = Continuar, 2 = Salir
+local pauseSelection = 1
 local pauseOptions = {"CONTINUAR_PROCESO", "ABORTAR_MISION"}
 
 function Game.init()
@@ -37,7 +43,10 @@ function Game.load()
     Game.distortion.intensity = 0
     Game.hitStopTimer = 0
 
-    -- Reseteamos la pausa cada vez que inicia una partida nueva
+    -- Reseteamos combos y pausa al iniciar
+    Game.combo = 0
+    Game.comboTimer = 0
+    Game.multiplier = 1
     isPaused = false
     pauseSelection = 1
 
@@ -48,12 +57,8 @@ function Game.load()
 end
 
 function Game.update(dt)
-    -- SI EL JUEGO ESTÁ PAUSADO, SE DETIENE TODA LA LÓGICA
-    if isPaused then
-        return
-    end
+    if isPaused then return end
 
-    -- Lógica de HitStop (Congelación por impacto)
     if Game.hitStopTimer > 0 then
         Game.hitStopTimer = Game.hitStopTimer - dt
         return
@@ -63,13 +68,21 @@ function Game.update(dt)
     Game.scoreScale = math.max(1, Game.scoreScale - dt * 5)
     Game.distortion.shake = math.max(0, Game.distortion.shake - dt * 5)
 
+    -- LÓGICA DE DECADENCIA DEL COMBO
+    if Game.comboTimer > 0 then
+        Game.comboTimer = Game.comboTimer - dt
+        if Game.comboTimer <= 0 then
+            Game.combo = 0
+            Game.multiplier = 1
+        end
+    end
+
     Player.update(dt)
     Enemies.update(dt, Game)
     Particles.update(dt)
 end
 
 function Game.draw()
-    -- 1. DIBUJAMOS EL JUEGO NORMAL EN EL FONDO
     love.graphics.push()
         Tunnel.applyDistortion(Game.timer, Game.distortion)
 
@@ -86,29 +99,41 @@ function Game.draw()
         end
     love.graphics.pop()
 
-    -- UI del gameplay
+    -- UI DEL GAMEPLAY (PUNTAJE Y COMBO)
     love.graphics.setColor(1, 1, 1)
     local scoreText = "SUJETO_DATA: " .. Game.score
     love.graphics.print(scoreText, 20, 20, 0, Game.scoreScale, Game.scoreScale)
 
-    -- 2. SI ESTÁ PAUSADO, DIBUJAMOS UNA CAPA SUPERPUESTA (OVERLAY)
+    if Game.combo > 0 then
+        -- Dibujar el número de combo
+        love.graphics.setColor(1, 1, 0)
+        love.graphics.print("RÁFAGA: " .. Game.combo, 20, 50, 0, 1.5, 1.5)
+
+        -- Dibujar el multiplicador (Si es mayor a 1, brillamos en rojo)
+        if Game.multiplier > 1 then love.graphics.setColor(1, 0.2, 0.2) else love.graphics.setColor(1, 0.5, 0) end
+        love.graphics.print("MULTIPLICADOR: x" .. Game.multiplier, 20, 75, 0, 1.2, 1.2)
+
+        -- Dibujar la barra de tiempo decreciente
+        local barWidth = 150 * (Game.comboTimer / Game.maxComboTimer)
+        love.graphics.setColor(1, 0, 0)
+        love.graphics.rectangle("fill", 20, 100, barWidth, 10)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", 20, 100, 150, 10)
+    end
+
+    -- OVERLAY DE PAUSA
     if isPaused then
-        -- Capa oscura semitransparente para contrastar el menú
         love.graphics.setColor(0, 0, 0, 0.75)
         love.graphics.rectangle("fill", 0, 0, _G.ScreenW, _G.ScreenH)
 
-        -- Título del menú de pausa
-        love.graphics.setColor(0, 1, 0.3) -- Color verde terminal
+        love.graphics.setColor(0, 1, 0.3)
         love.graphics.printf("SISTEMA_EN_ESPERA (PAUSA)", 0, _G.CenterY - 80, _G.ScreenW, "center")
 
-        -- Dibujamos las opciones del menú
         for i = 1, #pauseOptions do
             if i == pauseSelection then
-                -- Opción seleccionada: Brilla en amarillo y tiene un indicador ">"
                 love.graphics.setColor(1, 1, 0)
                 love.graphics.printf("> " .. pauseOptions[i] .. " <", 0, _G.CenterY - 10 + (i * 30), _G.ScreenW, "center")
             else
-                -- Opción normal: Texto gris estático
                 love.graphics.setColor(0.5, 0.5, 0.5)
                 love.graphics.printf(pauseOptions[i], 0, _G.CenterY - 10 + (i * 30), _G.ScreenW, "center")
             end
@@ -117,14 +142,12 @@ function Game.draw()
 end
 
 function Game.keypressed(key)
-    -- Si presionas ESCAPE o 'P', alternas el estado de pausa
     if key == "escape" or key == "p" then
         isPaused = not isPaused
-        pauseSelection = 1 -- Reinicia la selección al pausar
+        pauseSelection = 1
         return
     end
 
-    -- CONTROLES EXCLUSIVOS CUANDO EL JUEGO ESTÁ PAUSADO
     if isPaused then
         if key == "up" then
             pauseSelection = pauseSelection - 1
@@ -133,11 +156,10 @@ function Game.keypressed(key)
             pauseSelection = pauseSelection + 1
             if pauseSelection > #pauseOptions then pauseSelection = 1 end
         elseif key == "return" then
-            -- Ejecutar la opción seleccionada al presionar ENTER
             if pauseSelection == 1 then
-                isPaused = false -- Continuar juego
+                isPaused = false
             elseif pauseSelection == 2 then
-                _G.ChangeState("menu") -- Regresar al menú principal
+                _G.ChangeState("menu")
             end
         end
     end
