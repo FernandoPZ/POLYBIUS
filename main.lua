@@ -5,6 +5,7 @@
 local Menu = require("states.menu")
 local Game = require("states.game")
 local GameOver = require("states.gameover")
+local Audio = require("systems.audio")
 
 -- Diccionario de estados
 local states = {
@@ -33,6 +34,7 @@ function _G.ChangeState(stateName, ...)
 end
 
 function love.load()
+    Audio.init()
     -- Configuración del Canvas y Shader
     mainCanvas = love.graphics.newCanvas(_G.ScreenW, _G.ScreenH)
 

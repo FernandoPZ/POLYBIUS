@@ -7,20 +7,23 @@ local Particles = require("entities.particles")
 
 local Enemies = {}
 Enemies.pool = {}
-local MAX_ENEMIES = 50
+local MAX_ENEMIES = 150
 
-local spawnTimer = 0
-local spawnRate = 2.0
+-- Variables del Gestor de Olas
+local waveTimer = 0
+local waveDelay = 3.0
+local currentDifficulty = 1
 
 function Enemies.load()
     Enemies.pool = {}
-    spawnTimer = 0
-    spawnRate = 2.0
+    waveTimer = 2.0 -- Tiempo antes de la primera ola
+    waveDelay = 3.0
+    currentDifficulty = 1
 
+    -- PRE-ALLOCATION
     for i = 1, MAX_ENEMIES do
         table.insert(Enemies.pool, {
-            active = false,
-            type = "", hp = 0, speed = 0, sizeBase = 0, scoreValue = 0,
+            active = false, type = "", hp = 0, speed = 0, sizeBase = 0, scoreValue = 0,
             angle = 0, distance = 0, flashTimer = 0, size = 0, vertices = {}
         })
     end
@@ -28,45 +31,97 @@ end
 
 local function getInactiveEnemy()
     for i = 1, MAX_ENEMIES do
-        if not Enemies.pool[i].active then
-            return Enemies.pool[i]
-        end
+        if not Enemies.pool[i].active then return Enemies.pool[i] end
     end
     return nil
 end
 
-function Enemies.update(dt, gameContext)
-    spawnTimer = spawnTimer + dt
+-- Función auxiliar para invocar un enemigo específico
+local function spawnEnemy(eType, angle, distOffset)
+    local enemy = getInactiveEnemy()
+    if not enemy then return end
 
-    if spawnTimer >= spawnRate then
-        local enemy = getInactiveEnemy()
+    enemy.active = true
+    enemy.angle = angle
+    enemy.distance = distOffset or 0
+    enemy.flashTimer = 0
+    enemy.vertices = {}
 
-        if enemy then
-            local roll = math.random()
-            enemy.active = true
-            enemy.angle = math.random() * math.pi * 2
-            enemy.distance = 0
-            enemy.flashTimer = 0
-            enemy.vertices = {}
-
-            if roll > 0.9 then
-                enemy.type = "grande"; enemy.hp = 10; enemy.speed = 30; enemy.sizeBase = 8; enemy.scoreValue = 1000
-            elseif roll > 0.6 then
-                enemy.type = "nave"; enemy.hp = 3; enemy.speed = 50; enemy.sizeBase = 4; enemy.scoreValue = 300
-            else
-                enemy.type = "meteorito"; enemy.hp = 1; enemy.speed = 60; enemy.sizeBase = 2; enemy.scoreValue = 100
-                local points = math.random(5, 8)
-                for v = 1, points do
-                    local a = (v / points) * math.pi * 2
-                    local r = math.random(60, 140) / 100
-                    table.insert(enemy.vertices, math.cos(a) * r)
-                    table.insert(enemy.vertices, math.sin(a) * r)
-                end
-            end
-
-            spawnTimer = 0
-            spawnRate = math.max(0.5, spawnRate - 0.02)
+    if eType == "grande" then
+        enemy.type = "grande"; enemy.hp = 10; enemy.speed = 30; enemy.sizeBase = 8; enemy.scoreValue = 1000
+    elseif eType == "nave" then
+        enemy.type = "nave"; enemy.hp = 3; enemy.speed = 50; enemy.sizeBase = 4; enemy.scoreValue = 300
+    else
+        enemy.type = "meteorito"; enemy.hp = 1; enemy.speed = 60; enemy.sizeBase = 2; enemy.scoreValue = 100
+        local points = math.random(5, 8)
+        for v = 1, points do
+            local a = (v / points) * math.pi * 2
+            local r = math.random(60, 140) / 100
+            table.insert(enemy.vertices, math.cos(a) * r)
+            table.insert(enemy.vertices, math.sin(a) * r)
         end
+    end
+end
+
+-- DICCIONARIO DE PATRONES
+local Patterns = {}
+
+-- Anillo de meteoritos con un hueco para escapar
+function Patterns.ring()
+    local count = math.min(8 + math.floor(currentDifficulty), 16)
+    local gapIndex = math.random(1, count)
+    local baseAngle = math.random() * math.pi * 2
+
+    for i = 1, count do
+        if i ~= gapIndex and i ~= (gapIndex % count) + 1 then
+            local angle = baseAngle + (i / count) * math.pi * 2
+            spawnEnemy("meteorito", angle, 0)
+        end
+    end
+end
+
+-- Espiral de naves rápidas
+function Patterns.spiral()
+    local count = math.min(5 + math.floor(currentDifficulty / 2), 12)
+    local baseAngle = math.random() * math.pi * 2
+
+    for i = 1, count do
+        local angle = baseAngle + (i * 0.4)
+        local dist = -(i * 40) -- Spawnean más lejos secuencialmente
+        spawnEnemy("nave", angle, dist)
+    end
+end
+
+-- Muro blindado (Enemigo grande escoltado)
+function Patterns.wall()
+    local baseAngle = math.random() * math.pi * 2
+    spawnEnemy("grande", baseAngle, 0)
+    spawnEnemy("nave", baseAngle + 0.3, -50)
+    spawnEnemy("nave", baseAngle - 0.3, -50)
+end
+
+-- Lluvia aleatoria clásica
+function Patterns.randomScatter()
+    local count = math.random(3, 6)
+    for i = 1, count do
+        spawnEnemy("meteorito", math.random() * math.pi * 2, -math.random(0, 150))
+    end
+end
+
+local patternList = {Patterns.ring, Patterns.spiral, Patterns.wall, Patterns.randomScatter}
+
+function Enemies.update(dt, gameContext)
+    -- Lógica del Gestor de Olas
+    waveTimer = waveTimer - dt
+    if waveTimer <= 0 then
+        -- Patron al azar
+        local chosenPattern = patternList[math.random(1, #patternList)]
+        chosenPattern()
+
+        -- Dificultad progresiva
+        currentDifficulty = currentDifficulty + 0.2
+        waveDelay = math.max(1.2, waveDelay - 0.05)
+        waveTimer = waveDelay
     end
 
     local activeCount = 0
@@ -91,10 +146,8 @@ function Enemies.update(dt, gameContext)
                 end
             end
 
-            -- Colisión con Balas
             for j = 1, #Player.bullets do
                 local b = Player.bullets[j]
-
                 if b.active then
                     local dDiff = math.abs(b.distance - e.distance)
                     local aDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
@@ -103,7 +156,6 @@ function Enemies.update(dt, gameContext)
                     if dDiff < threshold and (aDiff < 0.2 or aDiff > (math.pi*2 - 0.2)) then
                         e.hp = e.hp - 1
                         e.flashTimer = 0.05
-
                         b.active = false
 
                         if e.hp <= 0 then
