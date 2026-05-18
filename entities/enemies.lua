@@ -4,6 +4,7 @@
 
 local Player = require("entities.player")
 local Particles = require("entities.particles")
+local Physics = require("systems.physics")
 
 local Enemies = {}
 Enemies.pool = {}
@@ -155,25 +156,20 @@ function Enemies.update(dt, gameContext)
 
             if e.flashTimer > 0 then e.flashTimer = e.flashTimer - dt end
 
-            -- Colisión con Jugador
-            if math.abs(e.distance - Player.ship.radius) < 15 then
-                local aDiff = math.abs((e.angle % (math.pi*2)) - (Player.ship.angle % (math.pi*2)))
-                if aDiff < 0.2 or aDiff > (math.pi * 2 - 0.2) then
-                    gameContext.distortion.shake = 4
-                    _G.ChangeState("gameover", gameContext.score)
-                    return
-                end
+            -- Colisión con Jugador (LIMPIO CON PHYSICS)
+            if Physics.checkPolarCollision(e, Player.ship, 15, 0.2) then
+                gameContext.distortion.shake = 4
+                _G.ChangeState("gameover", gameContext.score)
+                return
             end
 
-            -- Colisión con Balas
+            -- Colisión con Balas (LIMPIO CON PHYSICS)
             for j = 1, #Player.bullets do
                 local b = Player.bullets[j]
                 if b.active then
-                    local dDiff = math.abs(b.distance - e.distance)
-                    local aDiff = math.abs((b.angle % (math.pi*2)) - (e.angle % (math.pi*2)))
                     local threshold = 10 + (e.sizeBase * 2)
 
-                    if dDiff < threshold and (aDiff < 0.2 or aDiff > (math.pi*2 - 0.2)) then
+                    if Physics.checkPolarCollision(e, b, threshold, 0.2) then
                         e.hp = e.hp - 1
                         e.flashTimer = 0.05
                         b.active = false
