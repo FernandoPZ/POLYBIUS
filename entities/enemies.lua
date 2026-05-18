@@ -1,5 +1,5 @@
 -- entities/enemies.lua
--- Modificado (2026-05-14)
+-- Modificado (2026-05-18)
 -- Autor: Fernando Pérez S.
 
 local Player = require("entities.player")
@@ -22,9 +22,13 @@ function Enemies.load()
 
     -- PRE-ALLOCATION
     for i = 1, MAX_ENEMIES do
+        local history = {}
+        for h = 1, 5 do table.insert(history, {angle = 0, distance = 0}) end
+
         table.insert(Enemies.pool, {
             active = false, type = "", hp = 0, speed = 0, sizeBase = 0, scoreValue = 0,
-            angle = 0, distance = 0, flashTimer = 0, size = 0, vertices = {}
+            angle = 0, distance = 0, flashTimer = 0, size = 0, vertices = {},
+            history = history
         })
     end
 end
@@ -60,6 +64,11 @@ local function spawnEnemy(eType, angle, distOffset)
             table.insert(enemy.vertices, math.cos(a) * r)
             table.insert(enemy.vertices, math.sin(a) * r)
         end
+    end
+
+    for h = 1, 5 do
+        enemy.history[h].angle = angle
+        enemy.history[h].distance = distOffset or 0
     end
 end
 
@@ -110,6 +119,8 @@ end
 
 local patternList = {Patterns.ring, Patterns.spiral, Patterns.wall, Patterns.randomScatter}
 
+-- ==========================================
+
 function Enemies.update(dt, gameContext)
     -- Lógica del Gestor de Olas
     waveTimer = waveTimer - dt
@@ -130,6 +141,14 @@ function Enemies.update(dt, gameContext)
         local e = Enemies.pool[i]
 
         if e.active then
+            -- GUARDAMOS EL HISTORIAL ANTES DE MOVERLO
+            for h = 5, 2, -1 do
+                e.history[h].distance = e.history[h-1].distance
+                e.history[h].angle = e.history[h-1].angle
+            end
+            e.history[1].distance = e.distance
+            e.history[1].angle = e.angle
+
             activeCount = activeCount + 1
             e.distance = e.distance + e.speed * dt
             e.size = (e.distance / Player.ship.radius) * 20 * e.sizeBase
@@ -146,6 +165,7 @@ function Enemies.update(dt, gameContext)
                 end
             end
 
+            -- Colisión con Balas
             for j = 1, #Player.bullets do
                 local b = Player.bullets[j]
                 if b.active then
@@ -175,6 +195,7 @@ function Enemies.update(dt, gameContext)
                 end
             end
 
+            -- Desactivar si se sale de la pantalla
             if e.active and e.distance > Player.ship.radius + 100 then
                 e.active = false
             end
@@ -184,11 +205,47 @@ function Enemies.update(dt, gameContext)
     gameContext.distortion.intensity = activeCount * 0.5
 end
 
+-- Función auxiliar para dibujar las formas sin repetir código
+local function drawEnemyShape(eType, size, vertices)
+    if eType == "meteorito" then
+        love.graphics.push()
+        love.graphics.scale(size / 2, size / 2)
+        love.graphics.polygon("line", vertices)
+        love.graphics.pop()
+    elseif eType == "nave" then
+        love.graphics.polygon("line", 0, size/2, -size/2, -size/2, size/2, -size/2)
+    elseif eType == "grande" then
+        local w, h = size, size / 1.5
+        love.graphics.rectangle("line", -w/2, -h/2, w, h)
+    end
+end
+
 function Enemies.draw(timer)
     for i = 1, MAX_ENEMIES do
         local e = Enemies.pool[i]
 
         if e.active then
+            -- 1. DIBUJAMOS LA ESTELA (De la más vieja a la más nueva)
+            for h = 5, 1, -1 do
+                local hist = e.history[h]
+                local hx = _G.CenterX + math.cos(hist.angle) * hist.distance
+                local hy = _G.CenterY + math.sin(hist.angle) * hist.distance
+                local hSize = (hist.distance / Player.ship.radius) * 20 * e.sizeBase
+                local alpha = (1 - (h / 5)) * 0.4 -- Opacidad reducida
+
+                love.graphics.push()
+                    love.graphics.translate(hx, hy)
+                    love.graphics.rotate(hist.angle + timer * 2)
+
+                    if e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9, alpha)
+                    elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0, alpha)
+                    else love.graphics.setColor(1, 0.2, 0.2, alpha) end
+
+                    drawEnemyShape(e.type, hSize, e.vertices)
+                love.graphics.pop()
+            end
+
+            -- 2. DIBUJAMOS EL ENEMIGO PRINCIPAL (Opacidad total)
             local ex = _G.CenterX + math.cos(e.angle) * e.distance
             local ey = _G.CenterY + math.sin(e.angle) * e.distance
 
@@ -196,22 +253,12 @@ function Enemies.draw(timer)
                 love.graphics.translate(ex, ey)
                 love.graphics.rotate(e.angle + timer * 2)
 
-                if e.flashTimer > 0 then love.graphics.setColor(1, 1, 1)
-                elseif e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9)
-                elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0)
-                else love.graphics.setColor(1, 0.2, 0.2) end
+                if e.flashTimer > 0 then love.graphics.setColor(1, 1, 1, 1)
+                elseif e.type == "grande" then love.graphics.setColor(0.6, 0.1, 0.9, 1)
+                elseif e.type == "nave" then love.graphics.setColor(1, 0.5, 0, 1)
+                else love.graphics.setColor(1, 0.2, 0.2, 1) end
 
-                if e.type == "meteorito" then
-                    love.graphics.push()
-                    love.graphics.scale(e.size / 2, e.size / 2)
-                    love.graphics.polygon("line", e.vertices)
-                    love.graphics.pop()
-                elseif e.type == "nave" then
-                    love.graphics.polygon("line", 0, e.size/2, -e.size/2, -e.size/2, e.size/2, -e.size/2)
-                elseif e.type == "grande" then
-                    local w, h = e.size, e.size / 1.5
-                    love.graphics.rectangle("line", -w/2, -h/2, w, h)
-                end
+                drawEnemyShape(e.type, e.size, e.vertices)
             love.graphics.pop()
         end
     end
