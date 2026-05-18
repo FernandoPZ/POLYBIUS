@@ -1,17 +1,20 @@
 -- main.lua
--- Modificado (2026-05-14)
+-- Modificado (2026-05-18)
 -- Autor: Fernando Pérez S.
 
 local Menu = require("states.menu")
 local Game = require("states.game")
 local GameOver = require("states.gameover")
 local Audio = require("systems.audio")
+local Settings = require("systems.settings")
+local Options = require("states.options")
 
 -- Diccionario de estados
 local states = {
     menu = Menu,
     play = Game,
-    gameover = GameOver
+    gameover = GameOver,
+    options = Options
 }
 
 local activeState = nil
@@ -34,7 +37,9 @@ function _G.ChangeState(stateName, ...)
 end
 
 function love.load()
+    Settings.load()
     Audio.init()
+
     -- Configuración del Canvas y Shader
     mainCanvas = love.graphics.newCanvas(_G.ScreenW, _G.ScreenH)
 
@@ -102,7 +107,11 @@ function love.draw()
 
     love.graphics.setCanvas()
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setShader(crtShader)
+
+    if Settings.data.crt then
+        love.graphics.setShader(crtShader)
+    end
+
     love.graphics.draw(mainCanvas, 0, 0)
     love.graphics.setShader()
 end
